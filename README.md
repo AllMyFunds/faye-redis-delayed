@@ -46,8 +46,10 @@ Additional options provided by `Faye::DelayedRedis`:
 
 * `:expire` — expire time in seconds, defaults to `60`
 * `:delay_channels` - Array of channels that should be delayed
+* `:offline_channels` - Array of channels that should fire the `offline_callback` if no clients connected to them
+* `:offline_callback` - Callback responding to `#call(message)` method where message matches `offline_channels`
 
-:delay_channels can be specified as strings or as regular expressions.
+`:delay_channels` and `:offline_channels` can be specified as strings or as regular expressions.
 If something is given, then only channels matching one of the listed
 patterns will be delayed.  Without this argument, every channel is
 delayed.

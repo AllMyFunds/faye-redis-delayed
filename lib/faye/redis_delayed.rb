@@ -29,12 +29,19 @@ module Faye
       keys         = channels.map { |c| @ns + "/channels#{c}" }
 
       @redis.sunion(*keys) do |clients|
-        if clients.empty? && delay_channel?(message["channel"])
-          key = @ns + "/channels#{message["channel"]}/awaiting_messages"
-          # store message in redis
-          @redis.rpush(key, json_message)
-          # Set expiration time to one minute
-          @redis.expire(key, @options[:expire] || DEFAULT_EXPIRE)
+        if clients.empty?
+          if delay_channel?(message["channel"])
+            key = @ns + "/channels#{message["channel"]}/awaiting_messages"
+            # store message in redis
+            @redis.rpush(key, json_message)
+            # Set expiration time to one minute
+            @redis.expire(key, @options[:expire] || DEFAULT_EXPIRE)
+          end
+
+          if offline_channel?(message["channel"])
+            @server.debug "Channel is offline: #{message["channel"]}"
+            offline_callback(message)
+          end
         end
 
         clients.each do |client_id|
@@ -61,6 +68,20 @@ module Faye
 
     def delay_channel?(channel)
       delay_channels.empty? || delay_channels.any? { |pattern| pattern === channel }
+    end
+
+    def offline_channels
+      @offline_channels ||= Array(@options[:offline_channels]).flatten
+    end
+
+    def offline_channel?(channel)
+      offline_channels.empty? || offline_channels.any? { |pattern| pattern === channel }
+    end
+
+    def offline_callback(message)
+      @server.debug "Offline callback for #{message.inspect}"
+      offline_callback = @options[:offline_callback]
+      offline_callback.call(message) if offline_callback.respond_to?(:call)
     end
   end
 end
